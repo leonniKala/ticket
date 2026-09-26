@@ -1,0 +1,15 @@
+# Render Blueprint: New > Blueprint > pick this repository.
+services:
+  - type: web
+    name: ticket-to-ride
+    runtime: node
+    plan: free
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/ping
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Render asks for this value when the Blueprint is created.
+      - key: ADMIN_PASSWORD
+        sync: false
