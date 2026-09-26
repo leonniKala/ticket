@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#14262f">
+<title>Παίκτης — Σιδηρόδρομοι Ευρώπης</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  #join{padding:22px 18px;display:flex;flex-direction:column;gap:12px;max-width:380px;margin:0 auto;width:100%;}
+  #join h1{font-size:21px;margin:6px 0 2px;}
+  #join label{font-size:12.5px;opacity:.7;margin-bottom:-6px;}
+  input{
+    background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;
+    border-radius:10px;padding:13px;font-size:17px;font-family:inherit;width:100%;
+  }
+  input:focus{outline:2px solid #2f6f8f;}
+  #game{display:none;flex-direction:column;height:100%;}
+  #top{
+    flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:7px 10px;
+    background:var(--panel2);font-size:13px;
+  }
+  #turn{font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  #bottom{
+    flex:0 0 auto;background:var(--panel);padding:8px 10px 10px;
+    box-shadow:0 -4px 14px rgba(0,0,0,.35);
+  }
+  #hand{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 8px;}
+  #acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  #acts .btn{flex:1 1 auto;padding:12px;font-size:14px;}
+  #fu{display:flex;gap:6px;overflow-x:auto;padding:2px 0 6px;}
+  #fu .card{width:38px;height:52px;cursor:pointer;}
+  #fu .card.dim{opacity:.35;}
+  #sheet{
+    position:fixed;left:0;right:0;bottom:0;background:#1b3a4b;border-radius:16px 16px 0 0;
+    padding:14px 14px calc(14px + env(safe-area-inset-bottom));transform:translateY(110%);
+    transition:transform .2s;z-index:10;box-shadow:0 -8px 30px rgba(0,0,0,.5);max-height:70vh;overflow:auto;
+  }
+  #sheet.on{transform:none;}
+  #sheet h3{margin:0 0 4px;font-size:16px;}
+  .opt{
+    display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);
+    border-radius:10px;padding:10px 12px;margin-top:8px;cursor:pointer;font-size:14px;
+  }
+  .opt:active{background:rgba(255,255,255,.18);}
+  .mini{width:17px;height:23px;border-radius:4px;border:1px solid rgba(0,0,0,.5);display:inline-block;}
+  .toast{
+    position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#a33;color:#fff;
+    padding:9px 15px;border-radius:9px;font-size:14px;z-index:20;opacity:0;transition:opacity .2s;pointer-events:none;
+  }
+  .toast.on{opacity:1;}
+</style>
+</head>
+<body>
+
+<div id="join">
+  <h1>🚂 Σύνδεση στο παιχνίδι</h1>
+  <div class="muted" style="font-size:13.5px;line-height:1.5">
+    Βάλε τον τετραψήφιο κωδικό που δείχνει η τηλεόραση.
+  </div>
+  <div id="joinErr"></div>
+  <label>Κωδικός δωματίου</label>
+  <input id="fCode" inputmode="numeric" maxlength="4" placeholder="1234">
+  <label>Το όνομά σου</label>
+  <input id="fName" maxlength="14" placeholder="π.χ. Λεωνίδας">
+  <label>Προσωπικός κωδικός (για να ξαναμπείς αν κλείσει το κινητό)</label>
+  <input id="fPin" inputmode="numeric" maxlength="6" placeholder="π.χ. 1111">
+  <button class="btn go" id="joinBtn">Μπες</button>
+</div>
+
+<div id="game">
+  <div id="top">
+    <span class="dot" id="myDot"></span>
+    <span id="turn">…</span>
+    <span id="mystats" class="muted"></span>
+    <button class="btn ghost" id="fitBtn" style="padding:6px 10px;font-size:13px">⤢</button>
+  </div>
+
+  <div class="map-wrap"><svg class="map" id="map"></svg></div>
+
+  <div id="bottom">
+    <div id="fu"></div>
+    <div id="hand"></div>
+    <div id="acts">
+      <button class="btn" id="drawDeck">Τράβα από τράπουλα</button>
+      <span class="muted" id="hint" style="font-size:12.5px"></span>
+    </div>
+  </div>
+</div>
+
+<div id="sheet">
+  <h3 id="sheetTitle"></h3>
+  <div class="muted" id="sheetSub" style="font-size:13px"></div>
+  <div id="opts"></div>
+  <button class="btn ghost" style="margin-top:10px;width:100%" onclick="closeSheet()">Άκυρο</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="board-data.js"></script>
+<script src="board.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const COLS=['#c62828','#1565c0','#2e7d32','#f9a825','#37474f'];
+let ws=null, state=null, me=null, view=null, selRoute=null;
+
+/* ---------- σύνδεση ---------- */
+function connect(auto){
+  ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);
+  ws.onopen=()=>{ if(auto) doJoin(true); };
+  ws.onmessage=e=>{
+    const m=JSON.parse(e.data);
+    if(m.t==='joined'){
+      me={id:m.playerId,name:m.name};
+      localStorage.setItem('ttr_me',JSON.stringify({code:$('#fCode').value,name:m.name,pin:$('#fPin').value}));
+      $('#join').style.display='none'; $('#game').style.display='flex';
+      if(!view) view=BoardView($('#map'),{onRoute:onRouteTap});
+      requestAnimationFrame(()=>view.camFill(false));
+    }
+    if(m.t==='state'){ state=m.state; render(); }
+    if(m.t==='error'){ showErr(m.msg); }
+  };
+  ws.onclose=()=>{ setTimeout(()=>connect(true),1500); };
+}
+function doJoin(silent){
+  const code=$('#fCode').value.trim(), name=$('#fName').value.trim(), pin=$('#fPin').value.trim();
+  if(!code||!name){ if(!silent) showErr('Συμπλήρωσε κωδικό και όνομα'); return; }
+  ws.send(JSON.stringify({t:'join',code,name,pin}));
+}
+$('#joinBtn').onclick=()=>doJoin(false);
+function showErr(msg){
+  if($('#game').style.display==='flex'){
+    const t=$('#toast'); t.textContent=msg; t.classList.add('on');
+    clearTimeout(showErr._h); showErr._h=setTimeout(()=>t.classList.remove('on'),2200);
+  } else $('#joinErr').innerHTML='<div class="err">'+msg+'</div>';
+}
+// επαναφορά προηγούμενης συνεδρίας
+try{
+  const s=JSON.parse(localStorage.getItem('ttr_me')||'null');
+  if(s){ $('#fCode').value=s.code||''; $('#fName').value=s.name||''; $('#fPin').value=s.pin||''; }
+}catch(e){}
+connect(false);
+
+/* ---------- κάρτες ---------- */
+function cardEl(c,count){
+  const d=document.createElement('div');
+  d.className='card'+(c==='L'?' loco':'');
+  if(c!=='L') d.style.background=CARD_COLORS[c];
+  d.textContent=c==='L'?'⚙':'';
+  if(count!==undefined){ const n=document.createElement('span'); n.className='n'; n.textContent=count; d.appendChild(n); }
+  return d;
+}
+
+/* ---------- ποιες διαδρομές μπορώ ---------- */
+function combosFor(idx){
+  const r=BOARD.routes[idx], len=r[2], rc=r[3];
+  const need=(r[4]&&r[4][0]==='f')?+r[4][1]:0;
+  const hand=state.you.hand, out=[];
+  const cols=(rc==='x')?['r','o','y','g','b','k','w','p']:[rc];
+  // μόνο με ατμομηχανές
+  if((hand.L||0)>=len) out.push({color:null,locos:len,colored:0});
+  for(const c of cols){
+    const have=hand[c]||0;
+    for(let locos=need;locos<=Math.min(len-1,hand.L||0);locos++){
+      const colored=len-locos;
+      if(colored>0 && have>=colored) out.push({color:c,locos,colored});
+    }
+  }
+  out.sort((a,b)=>a.locos-b.locos || (a.colored-b.colored));
+  return out.filter(o=>o.locos>=need);
+}
+function myTurn(){ return state && state.phase==='playing' && state.turnPlayerId===me.id; }
+function canClaimNow(){ return myTurn() && state.drawnThisTurn===0; }
+
+function claimableSet(){
+  const s=new Set();
+  if(!canClaimNow()) return s;
+  BOARD.routes.forEach((r,i)=>{
+    if(state.owned[i]!==undefined) return;
+    if(state.you.wagons<r[2]) return;
+    // παράλληλη κλειδωμένη;
+    const key=[r[0],r[1]].sort().join('|');
+    let blocked=false;
+    BOARD.routes.forEach((r2,j)=>{
+      if(j===i) return;
+      if([r2[0],r2[1]].sort().join('|')!==key) return;
+      const o=state.owned[j];
+      if(o===undefined) return;
+      if(state.players.length<4) blocked=true;
+      else if(o===me.id) blocked=true;
+    });
+    if(blocked) return;
+    if(combosFor(i).length) s.add(i);
+  });
+  return s;
+}
+
+/* ---------- αλληλεπίδραση ---------- */
+function onRouteTap(idx){
+  if(!myTurn()){ showErr('Δεν είναι η σειρά σου'); return; }
+  if(state.drawnThisTurn>0){ showErr('Έχεις ήδη τραβήξει κάρτες'); return; }
+  if(state.owned[idx]!==undefined){ showErr('Πιασμένη διαδρομή'); return; }
+  const opts=combosFor(idx);
+  const r=BOARD.routes[idx];
+  if(!opts.length){ showErr('Δεν έχεις κάρτες για ' + r[0]+'–'+r[1]); return; }
+  selRoute=idx; view.setSelected(idx);
+  $('#sheetTitle').textContent=r[0]+' – '+r[1];
+  $('#sheetSub').textContent=view.routeLabel(idx);
+  const box=$('#opts'); box.innerHTML='';
+  opts.forEach(o=>{
+    const d=document.createElement('div'); d.className='opt';
+    let html='';
+    if(o.colored>0) html+='<span class="mini" style="background:'+CARD_COLORS[o.color]+'"></span> '+o.colored+' × '+CARD_NAMES[o.color];
+    if(o.locos>0) html+=(o.colored>0?' &nbsp;+&nbsp; ':'')+'<span class="mini" style="background:#ffcf3f"></span> '+o.locos+' × ατμομηχανή';
+    d.innerHTML=html;
+    d.onclick=()=>{
+      ws.send(JSON.stringify({t:'action',action:{type:'claim',index:idx,color:o.color,locos:o.locos}}));
+      closeSheet();
+    };
+    box.appendChild(d);
+  });
+  $('#sheet').classList.add('on');
+}
+function closeSheet(){ $('#sheet').classList.remove('on'); selRoute=null; if(view) view.setSelected(-1); }
+
+$('#drawDeck').onclick=()=>{
+  if(!myTurn()) return showErr('Δεν είναι η σειρά σου');
+  ws.send(JSON.stringify({t:'action',action:{type:'drawDeck'}}));
+};
+$('#fitBtn').onclick=()=>view.toggleCam();
+
+/* ---------- εμφάνιση ---------- */
+function render(){
+  if(!state||!me||!state.you) return;
+  const you=state.you;
+  $('#myDot').style.background=COLS[you.colorIdx];
+  const t=state.players.find(p=>p.id===state.turnPlayerId);
+
+  if(state.phase==='lobby') $('#turn').textContent='Αναμονή… (ο οικοδεσπότης ξεκινά)';
+  else if(state.phase==='over'){
+    const w=state.players.find(p=>p.id===state.winner);
+    $('#turn').textContent='🏁 Νικητής: '+(w?w.name:'—');
+  }
+  else $('#turn').textContent=myTurn()
+      ? (state.drawnThisTurn===1?'Σειρά σου — μία κάρτα ακόμη':'Σειρά σου')
+      : 'Παίζει: '+(t?t.name:'—');
+
+  $('#mystats').textContent=you.score+' π · '+you.wagons+'🚃';
+
+  // φανερές κάρτες
+  const fu=$('#fu'); fu.innerHTML='';
+  state.faceUp.forEach((c,i)=>{
+    const e=cardEl(c);
+    const blockedLoco=(c==='L'&&state.drawnThisTurn===1);
+    if(!myTurn()||blockedLoco) e.classList.add('dim');
+    e.onclick=()=>{
+      if(!myTurn()) return showErr('Δεν είναι η σειρά σου');
+      if(blockedLoco) return showErr('Η φανερή ατμομηχανή μετράει για όλη τη σειρά');
+      ws.send(JSON.stringify({t:'action',action:{type:'drawFaceUp',index:i}}));
+    };
+    fu.appendChild(e);
+  });
+
+  // χέρι
+  const h=$('#hand'); h.innerHTML='';
+  ['r','o','y','g','b','k','w','p','L'].forEach(c=>{
+    const n=you.hand[c]||0;
+    if(n>0) h.appendChild(cardEl(c,n));
+  });
+  if(!h.children.length) h.innerHTML='<span class="muted" style="font-size:13px">Χωρίς κάρτες</span>';
+
+  $('#drawDeck').disabled=!myTurn()||state.phase!=='playing';
+  const can=claimableSet();
+  view.setOwned(state.owned, pid=>{
+    const p=state.players.find(x=>x.id===pid); return p?COLS[p.colorIdx]:'#888';
+  });
+  view.setClaimable(can);
+  $('#hint').textContent = state.phase!=='playing' ? ''
+    : myTurn() ? (state.drawnThisTurn===0
+        ? (can.size? can.size+' διαδρομές διαθέσιμες — πάτα μία' : 'Τράβα κάρτες')
+        : 'Διάλεξε ακόμη μία κάρτα')
+      : '';
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>Ταμπλό — Σιδηρόδρομοι Ευρώπης</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  body{flex-direction:row;}
+  #side{
+    flex:0 0 310px;background:var(--panel);display:flex;flex-direction:column;
+    padding:16px;gap:14px;overflow:auto;
+  }
+  #code{
+    background:var(--panel2);border-radius:14px;padding:12px 14px;text-align:center;
+  }
+  #code .lbl{font-size:11px;letter-spacing:.16em;opacity:.6;text-transform:uppercase;}
+  #code .val{font-size:44px;font-weight:900;letter-spacing:.14em;line-height:1.1;}
+  #code .url{font-size:12px;opacity:.6;word-break:break-all;margin-top:4px;}
+  .plist{display:flex;flex-direction:column;gap:8px;}
+  .prow{
+    display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.07);
+    border-radius:11px;padding:9px 11px;font-size:14px;
+  }
+  .prow.now{background:rgba(255,211,74,.18);box-shadow:inset 0 0 0 2px rgba(255,211,74,.55);}
+  .prow .nm{font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .prow .sc{font-weight:900;font-size:17px;}
+  .prow .wg{font-size:11px;opacity:.65;}
+  .prow.off .nm{opacity:.45;}
+  #faceup{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;}
+  #faceup .card{width:40px;height:56px;}
+  #log{font-size:12px;line-height:1.65;opacity:.75;flex:1 1 auto;overflow:auto;}
+  h2{font-size:12px;letter-spacing:.12em;text-transform:uppercase;opacity:.55;margin:0 0 6px;}
+  #banner{
+    position:absolute;left:50%;top:14px;transform:translateX(-50%);
+    background:rgba(20,38,47,.92);padding:10px 22px;border-radius:999px;
+    font-size:17px;font-weight:700;box-shadow:0 4px 18px rgba(0,0,0,.4);
+  }
+  @media (max-width:900px){ body{flex-direction:column;} #side{flex:0 0 auto;} }
+</style>
+</head>
+<body>
+  <div id="side">
+    <div id="code">
+      <div class="lbl">Κωδικός δωματίου</div>
+      <div class="val" id="codeVal">----</div>
+      <div class="url" id="urlVal"></div>
+    </div>
+    <div>
+      <h2>Παίκτες</h2>
+      <div class="plist" id="plist"><div class="muted">Κανείς ακόμη…</div></div>
+    </div>
+    <div>
+      <h2>Φανερές κάρτες</h2>
+      <div id="faceup"></div>
+      <div class="muted" style="font-size:12px;margin-top:6px" id="deckInfo"></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn go" id="startBtn">Ξεκίνα</button>
+      <button class="btn ghost" id="fitBtn">⤢</button>
+      <button class="btn warn" id="resetBtn" style="display:none">Νέο παιχνίδι</button>
+    </div>
+    <div>
+      <h2>Τι έγινε</h2>
+      <div id="log"></div>
+    </div>
+  </div>
+
+  <div class="map-wrap">
+    <svg class="map" id="map"></svg>
+    <div id="banner"></div>
+  </div>
+
+<script src="board-data.js"></script>
+<script src="board.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const view=BoardView($('#map'),{});
+let ws, code=localStorage.getItem('ttr_host_code')||null, state=null;
+
+function connect(){
+  ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);
+  ws.onopen=()=>ws.send(JSON.stringify({t:'host', code}));
+  ws.onmessage=e=>{
+    const m=JSON.parse(e.data);
+    if(m.t==='hosted'){
+      code=m.code; localStorage.setItem('ttr_host_code',code);
+      $('#codeVal').textContent=code;
+      $('#urlVal').textContent=location.host+'/play';
+    }
+    if(m.t==='state'){ state=m.state; render(); }
+    if(m.t==='error'){ console.warn(m.msg); }
+  };
+  ws.onclose=()=>setTimeout(connect,1500);
+}
+connect();
+
+const COLS=['#c62828','#1565c0','#2e7d32','#f9a825','#37474f'];
+function colorOf(pid){
+  const p=state&&state.players.find(x=>x.id===pid);
+  return p?COLS[p.colorIdx]:'#888';
+}
+
+function card(c){
+  const d=document.createElement('div');
+  d.className='card'+(c==='L'?' loco':'');
+  if(c!=='L') d.style.background=CARD_COLORS[c];
+  d.textContent=c==='L'?'⚙':'';
+  return d;
+}
+
+function render(){
+  if(!state) return;
+  // παίκτες
+  const pl=$('#plist');
+  if(!state.players.length){ pl.innerHTML='<div class="muted">Κανείς ακόμη…</div>'; }
+  else{
+    pl.innerHTML='';
+    state.players.forEach(p=>{
+      const row=document.createElement('div');
+      row.className='prow'+(p.id===state.turnPlayerId&&state.phase==='playing'?' now':'')+(p.connected?'':' off');
+      row.innerHTML=`<span class="dot" style="background:${COLS[p.colorIdx]}"></span>
+        <span class="nm">${p.name}</span>
+        <span class="wg">${p.cards}🂠 · ${p.wagons}🚃</span>
+        <span class="sc">${p.score}</span>`;
+      pl.appendChild(row);
+    });
+  }
+  // φανερές
+  const fu=$('#faceup'); fu.innerHTML='';
+  state.faceUp.forEach(c=>fu.appendChild(card(c)));
+  $('#deckInfo').textContent='τράπουλα '+state.deckLeft+' · σκουπίδια '+state.discardLeft;
+
+  // ταμπλό
+  view.setOwned(state.owned, colorOf);
+
+  // μπάνερ
+  const b=$('#banner');
+  if(state.phase==='lobby') b.textContent='Μπείτε με τον κωδικό '+(code||'');
+  else if(state.phase==='over'){
+    const w=state.players.find(p=>p.id===state.winner);
+    b.textContent='🏁 Νικητής: '+(w?w.name+' με '+w.score+' πόντους':'—');
+  } else {
+    const t=state.players.find(p=>p.id===state.turnPlayerId);
+    b.textContent=(state.finalRound?'⏳ Τελευταίος γύρος · ':'')+'Σειρά: '+(t?t.name:'—');
+  }
+  $('#startBtn').style.display=state.phase==='lobby'?'':'none';
+  $('#startBtn').disabled=state.players.length<2;
+  $('#resetBtn').style.display=state.phase==='over'?'':'none';
+  $('#log').innerHTML=(state.log||[]).slice().reverse().map(l=>'<div>'+l+'</div>').join('');
+}
+
+$('#startBtn').onclick=()=>ws.send(JSON.stringify({t:'start'}));
+$('#resetBtn').onclick=()=>{ if(confirm('Νέο παιχνίδι με τους ίδιους παίκτες;')) ws.send(JSON.stringify({t:'reset'})); };
+$('#fitBtn').onclick=()=>view.toggleCam();
+</script>
+</body>
+</html>
