@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#13212a">
+<title>Ticket to Ride · Admin</title>
+<link rel="icon" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@600;700&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/app.css">
+<style>
+  body { padding: 20px 16px 40px; }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  header h1 { font-size: 30px; color: var(--gold-2); }
+  .login { max-width: 360px; margin: 60px auto; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 22px; }
+  .room { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin-bottom: 16px; }
+  .room.fresh { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(212, 175, 95, 0.4); }
+  .room-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .room-code { font-size: 34px; font-weight: 800; letter-spacing: 6px; color: #fff; }
+  .phase { font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 1px; background: var(--panel-2); }
+  .phase.lobby { background: #28435a; } .phase.setup { background: #5a4a1f; } .phase.playing { background: #2f5a2a; } .phase.finished { background: #4a2f5a; }
+  .qr { margin-left: auto; width: 92px; height: 92px; background: #fff; border-radius: 10px; padding: 5px; }
+  .qr img { width: 100%; height: 100%; }
+  .members { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+  .mem { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 10px; background: #172833; font-weight: 700; }
+  .mem.current { outline: 2px solid var(--gold); }
+  .mem button { border: 0; background: #5a2723; color: #ffd9d4; border-radius: 6px; width: 24px; height: 24px; cursor: pointer; font-weight: 800; }
+  .links { display: flex; gap: 14px; flex-wrap: wrap; font-size: 14px; margin-bottom: 14px; }
+  .links a { color: var(--gold-2); }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .empty { text-align: center; color: var(--muted); padding: 40px 0; }
+  .err { color: #ffb4ab; font-weight: 600; min-height: 20px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <form id="login" class="login hidden">
+    <h1 style="color:var(--gold-2);margin-bottom:16px">Admin</h1>
+    <div class="field"><label for="pw">Κωδικός admin</label><input id="pw" type="password" autocomplete="current-password" required></div>
+    <div id="login-err" class="err"></div>
+    <button class="btn primary" style="width:100%">Σύνδεση</button>
+  </form>
+
+  <div id="main" class="hidden">
+    <header>
+      <h1>Παιχνίδια</h1>
+      <div class="btns">
+        <button id="new" class="btn primary">+ Νέο παιχνίδι</button>
+        <button id="logout" class="btn ghost small">Αποσύνδεση</button>
+      </div>
+    </header>
+    <div id="rooms"></div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/map-data.js"></script>
+<script src="/js/common.js"></script>
+<script src="/js/admin.js"></script>
+</body>
+</html>

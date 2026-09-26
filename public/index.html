@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#13212a">
+<title>Ticket to Ride · Είσοδος</title>
+<link rel="icon" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@600;700&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/app.css">
+<style>
+  body {
+    min-height: 100%;
+    background:
+      radial-gradient(ellipse at 50% -10%, rgba(212, 175, 95, 0.22), transparent 55%),
+      linear-gradient(180deg, #172a35, #0f1a21);
+    display: flex; align-items: flex-start; justify-content: center; padding: 28px 16px;
+  }
+  .wrap { width: 100%; max-width: 420px; }
+  .logo { text-align: center; margin: 8px 0 22px; }
+  .logo .t1 { font-family: 'EB Garamond', Georgia, serif; font-size: 40px; font-weight: 700; color: var(--gold-2); line-height: 1; }
+  .logo .t2 { font-family: 'EB Garamond', Georgia, serif; font-size: 22px; color: var(--muted); margin-top: 4px; letter-spacing: 4px; }
+  .rail { height: 8px; margin: 14px auto 0; width: 70%; background: repeating-linear-gradient(90deg, var(--gold) 0 3px, transparent 3px 14px); border-top: 2px solid var(--gold); border-bottom: 2px solid var(--gold); opacity: 0.6; }
+  .card-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px 18px; box-shadow: var(--shadow); }
+  .code-input { letter-spacing: 12px; text-align: center; font-size: 30px !important; font-weight: 800; height: 60px !important; }
+  .colors { display: flex; gap: 6px; }
+  .color-opt {
+    flex: 1; min-width: 0; height: 48px; border-radius: 10px; border: 3px solid transparent; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff;
+  }
+  .color-opt.red { background: var(--p-red); } .color-opt.blue { background: var(--p-blue); } .color-opt.green { background: var(--p-green); }
+  .color-opt.yellow { background: var(--p-yellow); color: #3a2a00; } .color-opt.black { background: var(--p-black); border-color: #555; }
+  .color-opt.sel { border-color: #fff; box-shadow: 0 0 0 3px var(--gold); }
+  .color-opt.taken { opacity: 0.25; cursor: not-allowed; }
+  .resume { margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .foot { text-align: center; margin-top: 22px; font-size: 13px; }
+  .foot a { color: var(--muted); margin: 0 10px; }
+  .err { color: #ffb4ab; font-weight: 600; min-height: 20px; margin: 4px 0 10px; }
+  .players-in { font-size: 13px; color: var(--muted); margin-top: -6px; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">
+    <div class="t1">Ticket to Ride</div>
+    <div class="t2">ΕΥΡΩΠΗ</div>
+    <div class="rail"></div>
+  </div>
+
+  <div id="resume" class="resume hidden"></div>
+
+  <form id="form" class="card-panel" autocomplete="off">
+    <div class="field">
+      <label for="code">Κωδικός παιχνιδιού</label>
+      <input id="code" class="code-input" inputmode="numeric" pattern="\d{4}" maxlength="4" required placeholder="····">
+    </div>
+    <div id="players-in" class="players-in"></div>
+    <div class="field">
+      <label for="name">Όνομα</label>
+      <input id="name" maxlength="16" required placeholder="π.χ. Μαρία" autocapitalize="words">
+    </div>
+    <div class="field">
+      <label for="pin">PIN (4 ψηφία, για να ξαναμπείς αν κλείσει το κινητό)</label>
+      <input id="pin" type="password" inputmode="numeric" pattern="\d{4}" maxlength="4" required placeholder="····">
+    </div>
+    <div class="field">
+      <label>Χρώμα τρένων</label>
+      <div id="colors" class="colors"></div>
+    </div>
+    <div id="err" class="err"></div>
+    <button class="btn primary" style="width:100%" type="submit">Μπες στο παιχνίδι</button>
+  </form>
+
+  <div class="foot"><a href="/tv">Οθόνη τηλεόρασης</a><a href="/admin">Admin</a></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/map-data.js"></script>
+<script src="/js/common.js"></script>
+<script>
+(function () {
+  const { h, PLAYER_COLOR_NAMES } = TTR;
+  const socket = TTR.connect();
+  const $ = (id) => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+  let color = null, taken = new Set();
+
+  // Colour picker
+  function drawColors() {
+    const box = $('colors');
+    box.textContent = '';
+    for (const c of Object.keys(PLAYER_COLOR_NAMES)) {
+      const isTaken = taken.has(c);
+      if (isTaken && color === c) color = null;
+      box.append(h('button', {
+        type: 'button', disabled: isTaken, 'aria-pressed': String(color === c),
+        class: `color-opt ${c}` + (color === c ? ' sel' : '') + (isTaken ? ' taken' : ''),
+        onclick: () => { color = c; drawColors(); },
+      }, PLAYER_COLOR_NAMES[c]));
+    }
+  }
+
+  // Who's already in the room
+  let peekTimer;
+  async function peek() {
+    const code = $('code').value.trim();
+    $('players-in').textContent = '';
+    taken = new Set();
+    if (/^\d{4}$/.test(code)) {
+      try {
+        const r = await socket.request('peek', { code });
+        taken = new Set(r.members.map((m) => m.color));
+        $('players-in').textContent = r.members.length
+          ? 'Μέσα: ' + r.members.map((m) => m.name).join(', ') + (r.phase !== 'lobby' ? ' · το παιχνίδι έχει ξεκινήσει' : '')
+          : 'Είσαι ο πρώτος παίκτης!';
+        $('err').textContent = '';
+      } catch (e) {
+        $('players-in').textContent = '';
+        $('err').textContent = e.message;
+      }
+    }
+    drawColors();
+  }
+  $('code').addEventListener('input', () => { clearTimeout(peekTimer); peekTimer = setTimeout(peek, 250); });
+
+  // Continue a previous session on this phone
+  const last = TTR.playerSession.get();
+  if (last && last.code) {
+    const box = $('resume');
+    box.classList.remove('hidden');
+    box.append(
+      h('a', { class: 'btn primary', href: `/play?code=${last.code}` }, `Συνέχεια: ${last.name || 'παίκτης'} · παιχνίδι ${last.code}`),
+    );
+  }
+
+  $('code').value = params.get('code') || (last && last.code) || '';
+  if (last && last.name) $('name').value = last.name;
+  drawColors();
+  socket.on('connect', peek);
+
+  $('form').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    $('err').textContent = '';
+    const code = $('code').value.trim(), name = $('name').value.trim(), pin = $('pin').value.trim();
+    try {
+      const r = await socket.request('join', { code, name, pin, color });
+      TTR.playerSession.set({ code: r.code, token: r.token, name });
+      location.href = `/play?code=${r.code}`;
+    } catch (e) {
+      $('err').textContent = e.message;
+    }
+  });
+})();
+</script>
+</body>
+</html>

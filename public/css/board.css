@@ -1,0 +1,63 @@
+/* Ticket to Ride board styles (used by the TV screen and the phones). */
+.ttr-board {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: 'IM Fell English SC', 'Cinzel', Georgia, serif;
+}
+
+/* frame + score track */
+.ttr-cell-num {
+  font-family: 'Cinzel', Georgia, serif;
+  font-weight: 700;
+  font-size: 11px;
+  fill: #f3e7c6;
+  pointer-events: none;
+}
+.ttr-cell-num.corner { font-size: 12.5px; fill: #ffe7a6; }
+
+/* legend + compass */
+.ttr-legend-num, .ttr-legend-pts {
+  font-family: 'Cinzel', Georgia, serif;
+  font-weight: 700;
+  font-size: 12px;
+  fill: #3b2412;
+}
+.ttr-legend-pts { fill: #9b2b1a; }
+.ttr-compass-n { font-family: 'Cinzel', Georgia, serif; font-weight: 700; font-size: 13px; fill: #5b3f25; }
+
+/* routes */
+.ttr-slot { stroke: #2d1e10; stroke-width: 1.1; stroke-opacity: 0.9; }
+.ttr-tunnel { fill: none; stroke: #1c1712; stroke-width: 2.4; stroke-dasharray: 2.4 1.7; }
+.ttr-route-hit { fill: none; stroke: transparent; stroke-width: 20; stroke-linecap: round; pointer-events: stroke; }
+.ttr-route-glow {
+  fill: none; stroke: #fff6a8; stroke-width: 22; stroke-linecap: round; stroke-opacity: 0;
+  pointer-events: none; transition: stroke-opacity 0.2s;
+}
+.ttr-route.highlight .ttr-route-glow { stroke-opacity: 0.85; animation: ttr-pulse 1.2s ease-in-out infinite; }
+.interactive .ttr-route:not(.claimed) { cursor: pointer; }
+.interactive .ttr-route:not(.claimed):hover .ttr-route-glow { stroke-opacity: 0.55; }
+@keyframes ttr-pulse { 50% { stroke-opacity: 0.35; } }
+
+.ttr-train { stroke: #fff; stroke-width: 1.2; }
+
+/* cities */
+.ttr-city-halo { fill: url(#ttr-halo); stroke: #7a4e26; stroke-width: 0.9; stroke-opacity: 0.55; }
+.ttr-city-dot { stroke: #3a1d0c; stroke-width: 1.4; }
+.ttr-city.highlight .ttr-city-halo { fill: #fff6a8; stroke: #c0392b; stroke-width: 2.2; stroke-opacity: 1; }
+.interactive .ttr-city { cursor: pointer; }
+.ttr-city-label {
+  font-family: 'IM Fell English SC', Georgia, serif;
+  font-size: 14.5px;
+  letter-spacing: 0.4px;
+  fill: #2e1c0e;
+  stroke: #f7eed6;
+  stroke-width: 3.6px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+  pointer-events: none;
+}
+
+.ttr-marker-lap { font: 700 6.5px Arial, sans-serif; fill: #fff; }

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ticket to Ride · Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=IM+Fell+English+SC&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/board.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #14232b; color: #eee; font: 14px system-ui, sans-serif; }
+  #stage { position: absolute; inset: 0 0 44px 0; display: flex; align-items: center; justify-content: center; padding: 8px; }
+  #board { width: 100%; height: 100%; }
+  #bar { position: absolute; left: 0; right: 0; bottom: 0; height: 44px; display: flex; gap: 8px; align-items: center; padding: 0 12px; background: #0d181e; }
+  #bar button { background: #2b4a58; color: #fff; border: 0; border-radius: 6px; padding: 7px 12px; cursor: pointer; }
+  #info { margin-left: auto; opacity: 0.85; }
+</style>
+</head>
+<body>
+<div id="stage"><div id="board"></div></div>
+<div id="bar">
+  <button id="demo">Δείγμα παρτίδας</button>
+  <button id="clear">Καθαρισμός</button>
+  <span id="info">Πάτησε μια διαδρομή ή πόλη</span>
+</div>
+<script src="js/map-data.js"></script>
+<script src="js/board.js"></script>
+<script>
+(async function () {
+  const land = await fetch('data/land.json').then((r) => r.json());
+  const board = TTRBoard.create(document.getElementById('board'), { land, interactive: true });
+  const info = document.getElementById('info');
+  if (new URLSearchParams(location.search).has('check')) {
+    await document.fonts.ready;
+    await new Promise((r) => { const s = document.createElement('script'); s.src = 'js/board-check.js'; s.onload = r; document.body.append(s); });
+    window.boardIssues = TTRBoardCheck.check(board);
+    TTRBoardCheck.show(board, window.boardIssues);
+    info.textContent = `Έλεγχος: ${window.boardIssues.length} προβλήματα`;
+  }
+  const { routes, cities } = TTR_MAP;
+  let state = {};
+
+  board.on('route', (r) => {
+    const kind = [r.tunnel && 'σήραγγα', r.ferry && `πορθμείο (${r.ferry} ατμομηχανές)`, r.double && 'διπλή'].filter(Boolean).join(', ');
+    info.textContent = `${cities[r.a].name} – ${cities[r.b].name}: ${r.length} βαγόνια, ${r.color}${kind ? ' · ' + kind : ''} · ${r.points} πόντοι`;
+    state.highlight = { routes: [r.id], cities: [r.a, r.b] };
+    board.setState(state);
+  });
+  board.on('city', (c) => {
+    info.textContent = c.name;
+    state.highlight = { cities: [c.id], routes: routes.filter((r) => r.a === c.id || r.b === c.id).map((r) => r.id) };
+    board.setState(state);
+  });
+
+  document.getElementById('demo').onclick = () => {
+    const colors = ['red', 'blue', 'green', 'yellow', 'black'];
+    const claims = {}, taken = new Set();
+    for (const r of routes) {
+      if (Math.random() < 0.35 && !taken.has(r.a + r.b)) { claims[r.id] = colors[Math.floor(Math.random() * 5)]; taken.add(r.a + r.b); }
+    }
+    const ids = Object.keys(cities);
+    state = {
+      claims,
+      stations: { [ids[5]]: 'red', [ids[20]]: 'blue', [ids[33]]: 'green' },
+      scores: colors.map((c) => ({ color: c, score: Math.floor(Math.random() * 130) })).concat([{ color: 'red', score: 0 }]).slice(0, 5),
+    };
+    board.setState(state);
+  };
+  document.getElementById('clear').onclick = () => { state = {}; board.setState(state); };
+
+  window.board = board;
+})();
+</script>
+</body>
+</html>

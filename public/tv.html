@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#13212a">
+<title>Ticket to Ride · Τηλεόραση</title>
+<link rel="icon" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=EB+Garamond:wght@600;700&family=IM+Fell+English+SC&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/app.css">
+<link rel="stylesheet" href="/css/board.css">
+<style>
+  html, body { height: 100%; overflow: hidden; font-size: 1.75vh; }
+  body { background: radial-gradient(ellipse at 30% 40%, #1c3240, #0d171d 70%); cursor: default; }
+  #tv { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 25vw; gap: 1.2vh; padding: 1.2vh; }
+  #stage { position: relative; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
+  #board { width: 100%; height: 100%; }
+  #side { display: flex; flex-direction: column; gap: 1.2vh; min-height: 0; }
+  .panel { background: rgba(26, 44, 55, 0.92); border: 1px solid var(--line); border-radius: 1.2vh; padding: 1.2vh 1.3vh; }
+  .brand { display: flex; align-items: center; justify-content: space-between; gap: 1vh; }
+  .brand .t { font-family: 'EB Garamond', Georgia, serif; font-weight: 700; font-size: 2.6vh; color: var(--gold-2); line-height: 1.05; }
+  .brand .code { font-weight: 800; font-size: 2.2vh; letter-spacing: 0.4vh; background: #0e1a20; border: 1px solid var(--gold); color: var(--gold-2); border-radius: 0.8vh; padding: 0.4vh 1vh; }
+  .brand .code small { display: block; font-size: 1.1vh; letter-spacing: 0.1vh; color: var(--muted); font-weight: 600; text-align: center; }
+
+  #players { display: flex; flex-direction: column; gap: 0.8vh; }
+  .pl { position: relative; display: grid; grid-template-columns: 0.7vh 1fr auto; gap: 0 1vh; align-items: center; padding: 0.9vh 1.1vh 0.9vh 0; border-radius: 1vh; background: #172833; border: 2px solid transparent; overflow: hidden; }
+  .pl .bar { grid-row: 1 / 3; align-self: stretch; }
+  .pl .nm { font-weight: 800; font-size: 2vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pl .sc { grid-row: 1 / 3; grid-column: 3; font-family: 'Cinzel', Georgia, serif; font-weight: 700; font-size: 3.4vh; color: var(--gold-2); }
+  .pl .stats { display: flex; gap: 1.2vh; font-size: 1.45vh; color: var(--muted); font-weight: 700; }
+  .pl .stats span { display: inline-flex; align-items: center; gap: 0.35vh; }
+  .pl .stats svg { width: 1.7vh; height: 1.7vh; }
+  .pl.current { border-color: var(--gold); background: linear-gradient(90deg, #2a3f2a, #172833 70%); box-shadow: 0 0 2vh rgba(212, 175, 95, 0.35); }
+  .pl.current .nm::after { content: '  ▶ παίζει'; font-size: 1.4vh; color: var(--gold-2); font-weight: 700; }
+  .pl .ready { color: var(--ok); }
+  .pl.offline .nm { opacity: 0.55; }
+
+  #market .faceup { display: flex; gap: 0.9vh; justify-content: space-between; margin-top: 0.8vh; }
+  #market .tcard { width: 4.4vh; height: 6.4vh; border-radius: 0.6vh; }
+  #market .tcard.fresh { animation: pop 0.6s ease-out; }
+  @keyframes pop { 0% { transform: scale(1.35); box-shadow: 0 0 2vh #fff6a8; } }
+  .piles { display: flex; justify-content: space-between; margin-top: 1vh; font-size: 1.45vh; color: var(--muted); font-weight: 700; }
+  .h { font-size: 1.25vh; font-weight: 800; letter-spacing: 0.15vh; text-transform: uppercase; color: var(--muted); }
+
+  #log { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+  #log .items { flex: 1; overflow: hidden; display: flex; flex-direction: column-reverse; gap: 0.6vh; margin-top: 0.8vh; }
+  #log .it { font-size: 1.5vh; line-height: 1.3; padding-left: 1vh; border-left: 0.4vh solid var(--line); }
+  #log .it:first-child { color: #fff; font-weight: 600; }
+
+  /* banner over the board */
+  #banner {
+    position: absolute; top: 1.6vh; left: 50%; transform: translateX(-50%); z-index: 5;
+    display: flex; align-items: center; gap: 1.2vh; padding: 0.9vh 2.2vh; border-radius: 3vh;
+    background: rgba(13, 23, 29, 0.88); border: 2px solid var(--gold); font-size: 2.2vh; font-weight: 800; white-space: nowrap;
+    box-shadow: var(--shadow);
+  }
+  #banner .pdot { width: 2.2vh; height: 2.2vh; }
+  #banner .hint { font-weight: 600; color: var(--muted); font-size: 1.8vh; }
+  #lastround { position: absolute; bottom: 2.4vh; left: 50%; transform: translateX(-50%); z-index: 5; padding: 1vh 3vh; border-radius: 1vh; background: #7a1f16; border: 2px solid #ffb199; color: #fff; font-weight: 800; font-size: 2.4vh; letter-spacing: 0.3vh; animation: glow 1.6s ease-in-out infinite; }
+  @keyframes glow { 50% { box-shadow: 0 0 3vh rgba(255, 120, 90, 0.8); } }
+
+  /* pop-ups on the board */
+  .popup {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 8;
+    background: rgba(18, 31, 39, 0.96); border: 2px solid var(--gold); border-radius: 2vh; padding: 2.4vh 3.2vh;
+    text-align: center; box-shadow: 0 2vh 6vh rgba(0, 0, 0, 0.6); animation: popin 0.3s ease-out; min-width: 40vh;
+  }
+  @keyframes popin { from { transform: translate(-50%, -46%) scale(0.92); opacity: 0; } }
+  .popup h2 { font-size: 3.4vh; color: var(--gold-2); }
+  .popup .sub { font-size: 2vh; color: var(--muted); margin-top: 0.6vh; font-weight: 600; }
+  .popup .cards { display: flex; gap: 2vh; justify-content: center; margin: 2.2vh 0 1.4vh; }
+  .popup .tcard { width: 9vh; height: 13vh; border-radius: 1vh; animation: flip 0.5s ease-out backwards; }
+  .popup .tcard:nth-child(2) { animation-delay: 0.35s; } .popup .tcard:nth-child(3) { animation-delay: 0.7s; }
+  .popup .tcard.hit { box-shadow: 0 0 0 0.5vh #ff6b5b, 0 0 3vh rgba(255, 107, 91, 0.8); }
+  @keyframes flip { from { transform: rotateY(90deg); } }
+  .popup .big { font-size: 2.6vh; font-weight: 800; }
+
+  #toast-tv { position: absolute; left: 50%; bottom: 8vh; transform: translateX(-50%); z-index: 6; display: flex; flex-direction: column; gap: 1vh; align-items: center; }
+  .tvtoast { display: flex; align-items: center; gap: 1.2vh; padding: 1.1vh 2.2vh; border-radius: 1.2vh; background: rgba(13, 23, 29, 0.92); border: 1px solid var(--line); font-size: 2.2vh; font-weight: 700; box-shadow: var(--shadow); animation: toast-in 0.25s ease-out; }
+  .tvtoast .pts { color: var(--gold-2); font-family: 'Cinzel', serif; }
+
+  /* full-screen overlays */
+  .full { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; }
+  #lobby-screen { background: radial-gradient(ellipse at 30% 30%, rgba(28, 50, 64, 0.97), rgba(10, 18, 23, 0.98)); gap: 8vh; }
+  .join-box { text-align: center; }
+  .join-box .title { font-family: 'EB Garamond', Georgia, serif; font-size: 7vh; font-weight: 700; color: var(--gold-2); line-height: 1; }
+  .join-box .title small { display: block; font-size: 3.2vh; letter-spacing: 1.2vh; color: var(--muted); margin-top: 1vh; }
+  .join-box .qr { width: 30vh; height: 30vh; background: #fff; border-radius: 2vh; padding: 1.6vh; margin: 4vh auto 2vh; box-shadow: 0 0 5vh rgba(212, 175, 95, 0.3); }
+  .join-box .qr img { width: 100%; height: 100%; display: block; }
+  .join-box .url { font-size: 2.4vh; color: var(--muted); font-weight: 600; }
+  .join-box .bigcode { font-size: 9vh; font-weight: 800; letter-spacing: 2vh; color: #fff; margin-top: 1vh; padding-left: 2vh; }
+  .joined { min-width: 42vh; }
+  .joined h2 { font-size: 4vh; color: var(--gold-2); margin-bottom: 2.4vh; }
+  .joined .m { display: flex; align-items: center; gap: 1.6vh; font-size: 3.2vh; font-weight: 800; padding: 1.4vh 2vh; margin-bottom: 1.2vh; background: rgba(31, 52, 65, 0.9); border-radius: 1.4vh; border: 1px solid var(--line); animation: popin2 0.4s ease-out; }
+  @keyframes popin2 { from { transform: translateX(-3vh); opacity: 0; } }
+  .joined .m .pdot { width: 3vh; height: 3vh; border-width: 0.4vh; }
+  .joined .m .off { margin-left: auto; font-size: 1.8vh; color: var(--muted); font-weight: 600; }
+  .joined .wait { font-size: 2.2vh; color: var(--muted); margin-top: 3vh; }
+
+  #results-screen { background: rgba(8, 14, 18, 0.72); }
+  .res { background: rgba(21, 36, 45, 0.97); border: 2px solid var(--gold); border-radius: 2.4vh; padding: 3.4vh 4.4vh; min-width: 70vw; box-shadow: 0 3vh 8vh rgba(0, 0, 0, 0.6); }
+  .res h1 { font-size: 6vh; color: var(--gold-2); text-align: center; }
+  .res .winner { text-align: center; font-size: 3vh; font-weight: 700; margin: 0.8vh 0 3vh; }
+  .res table { width: 100%; border-collapse: collapse; font-size: 2.6vh; }
+  .res th { font-size: 1.7vh; color: var(--muted); text-transform: uppercase; letter-spacing: 0.15vh; padding: 1vh; text-align: right; }
+  .res td { padding: 1.4vh 1vh; text-align: right; border-top: 1px solid var(--line); font-weight: 700; }
+  .res th:nth-child(2), .res td:nth-child(2) { text-align: left; }
+  .res td .pdot { width: 2.4vh; height: 2.4vh; margin-right: 1.2vh; vertical-align: -0.3vh; }
+  .res tr.first td { color: var(--gold-2); font-size: 3.2vh; }
+  .res td.total { font-family: 'Cinzel', serif; font-size: 3.4vh; }
+  .res .neg { color: #ff9f93; }
+  .res .note { text-align: center; color: var(--muted); font-size: 1.8vh; margin-top: 2.4vh; }
+
+  #code-screen { background: var(--bg); flex-direction: column; gap: 3vh; }
+  #code-screen input { font-size: 6vh; width: 34vh; text-align: center; letter-spacing: 2vh; height: 10vh; border-radius: 1.6vh; border: 2px solid var(--gold); background: #0e1a20; color: #fff; }
+  #code-screen .btn { font-size: 2.6vh; min-height: 7vh; padding: 0 5vh; }
+</style>
+</head>
+<body>
+<div id="tv" class="hidden">
+  <main id="stage">
+    <div id="board"></div>
+    <div id="banner" class="hidden"></div>
+    <div id="lastround" class="hidden">ΤΕΛΕΥΤΑΙΟΣ ΓΥΡΟΣ</div>
+    <div id="popup-root"></div>
+    <div id="toast-tv"></div>
+  </main>
+  <aside id="side">
+    <div class="panel brand"><div class="t">Ticket to Ride<br><span style="font-size:1.7vh;color:var(--muted);letter-spacing:.5vh">ΕΥΡΩΠΗ</span></div><div class="code"><small>κωδικός</small><span id="code-lbl"></span></div></div>
+    <div class="panel"><div class="h">Παίκτες</div><div id="players" style="margin-top:.8vh"></div></div>
+    <div class="panel" id="market"><div class="h">Ανοιχτές κάρτες</div><div class="faceup" id="faceup"></div><div class="piles" id="piles"></div></div>
+    <div class="panel" id="log"><div class="h">Τελευταίες κινήσεις</div><div class="items" id="log-items"></div></div>
+  </aside>
+</div>
+<div id="lobby-screen" class="full hidden"></div>
+<div id="results-screen" class="full hidden"></div>
+<form id="code-screen" class="full hidden">
+  <h1 style="font-size:5vh;color:var(--gold-2)">Ticket to Ride · Τηλεόραση</h1>
+  <div class="muted" style="font-size:2.4vh">Γράψε τον κωδικό του παιχνιδιού</div>
+  <input id="code-in" inputmode="numeric" maxlength="4" autocomplete="off">
+  <button class="btn primary" type="submit">Σύνδεση</button>
+  <div id="code-err" style="color:#ffb4ab;font-size:2.2vh;min-height:3vh"></div>
+</form>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/map-data.js"></script>
+<script src="/js/board.js"></script>
+<script src="/js/common.js"></script>
+<script src="/js/tv.js"></script>
+</body>
+</html>
